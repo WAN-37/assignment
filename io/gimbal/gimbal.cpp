@@ -12,18 +12,41 @@ Gimbal::Gimbal(const std::string & config_path)
   auto yaml = tools::load(config_path);
   auto com_port = tools::read<std::string>(yaml, "com_port");
 
-  try {
+  uint32_t baudrate = 115200u;
+  uint32_t timeout_ms = 50u; 
+  
+  try 
+  {
     serial_.setPort(com_port);
+    serial_.setBaudrate(baudrate);
+    auto time_out = serial::Timeout::simpleTimeout(timeout_ms);
+    serial_.setTimeout(time_out);
     serial_.open();
-  } catch (const std::exception & e) {
+    serial_.flushInput();
+
+  } 
+  catch (const std::exception & e) {
     tools::logger()->error("[Gimbal] Failed to open serial: {}", e.what());
     exit(1);
   }
 
   thread_ = std::thread(&Gimbal::read_thread, this);
 
-  queue_.pop();
-  tools::logger()->info("[Gimbal] First q received.");
+  //queue_.pop();
+  // tools::logger()->info("[Gimbal] First q received.");
+  int wait_count = 0;
+  const int max_wait = 300;
+  while (queue_.empty() && wait_count < max_wait) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    wait_count++;
+  }
+
+  if (!queue_.empty()) {
+    queue_.pop();
+    tools::logger()->info("[Gimbal] First q received.");
+  } else {
+    tools::logger()->warn("[Gimbal] No data received in 3s, skip pop.");
+  }//在调试过程中出现线程堵塞的情况
 }
 
 Gimbal::~Gimbal()
@@ -63,8 +86,23 @@ std::string Gimbal::str(GimbalMode mode) const
 
 Eigen::Quaterniond Gimbal::q(std::chrono::steady_clock::time_point t)
 {
-  while (true) {
+   while (true) 
+   {
+    //因为存在线程卡死的情况
+    if (queue_.empty()) {
+      if (has_last_q_) return last_q_;
+      return Eigen::Quaterniond(1.0, 0.0, 0.0, 0.0);
+    }
+
     auto [q_a, t_a] = queue_.pop();
+    //以下原因同上
+    last_q_ = q_a;
+    has_last_q_ = true;
+
+    if (queue_.empty()) {
+      return q_a;
+    }
+
     auto [q_b, t_b] = queue_.front();
     auto t_ab = tools::delta_time(t_a, t_b);
     auto t_ac = tools::delta_time(t_a, t);
@@ -86,9 +124,9 @@ void Gimbal::send(io::VisionToGimbal VisionToGimbal)
   tx_data_.pitch = VisionToGimbal.pitch;
   tx_data_.pitch_vel = VisionToGimbal.pitch_vel;
   tx_data_.pitch_acc = VisionToGimbal.pitch_acc;
+  tx_data_.tail = 0x0d;
   tx_data_.crc8 = tools::get_crc8(
-    reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_) - sizeof(tx_data_.crc8));
-  tx_data_.tail = VisionToGimbal.tail;
+  reinterpret_cast<uint8_t *>(&tx_data_),sizeof(tx_data_) - sizeof(tx_data_.crc8) - sizeof(tx_data_.tail));
 
   try {
     serial_.write(reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_));
@@ -108,12 +146,15 @@ void Gimbal::send(
   tx_data_.pitch = pitch;
   tx_data_.pitch_vel = pitch_vel;
   tx_data_.pitch_acc = pitch_acc;
+  tx_data_.tail = 0x0d;
   tx_data_.crc8 = tools::get_crc8(
-    reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_) - sizeof(tx_data_.get_crc8) - sizeof(tx_data_.tail));
+  reinterpret_cast<uint8_t *>(&tx_data_),sizeof(tx_data_) - sizeof(tx_data_.crc8) - sizeof(tx_data_.tail));
 
-  try {
+  try 
+  {
     serial_.write(reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_));
-  } catch (const std::exception & e) {
+  } catch (const std::exception & e) 
+  {
     tools::logger()->warn("[Gimbal] Failed to write serial: {}", e.what());
   }
 }
@@ -123,7 +164,7 @@ bool Gimbal::read(uint8_t * buffer, size_t size)
   try {
     return serial_.read(buffer, size) == size;
   } catch (const std::exception & e) {
-    // tools::logger()->warn("[Gimbal] Failed to read serial: {}", e.what());
+   tools::logger()->warn("[Gimbal] Failed to read serial: {}", e.what());
     return false;
   }
 }
@@ -132,9 +173,10 @@ void Gimbal::read_thread()
 {
   tools::logger()->info("[Gimbal] read_thread started.");
   int error_count = 0;
+  uint32_t head_mismatch_count = 0;
 
   while (!quit_) {
-    if (error_count > 5000) {
+    if (error_count > 50) {
       error_count = 0;
       tools::logger()->warn("[Gimbal] Too many errors, attempting to reconnect...");
       reconnect();
@@ -146,27 +188,60 @@ void Gimbal::read_thread()
       continue;
     }
 
-    if (rx_data_.head != 0xff) continue;
+    //if (rx_data_.head != 0xff) continue;
+    if (rx_data_.head != 0xff) 
+    {
+      error_count++;
+      //帧头出现错误
+      head_mismatch_count++;
+      if (head_mismatch_count % 20u == 1u) {
+      tools::logger()->warn(
+            "[Gimbal] Head mismatch x{}: expected 0xff, got {:#04x}",
+            head_mismatch_count, static_cast<int>(rx_data_.head));
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
 
     auto t = std::chrono::steady_clock::now();
 
     if (!read(
           reinterpret_cast<uint8_t *>(&rx_data_) + sizeof(rx_data_.head),
-          sizeof(rx_data_) - sizeof(rx_data_.head))) {
+          sizeof(rx_data_) - sizeof(rx_data_.head))) 
+    {
       error_count++;
       continue;
     }
 
-    /*if (!tools::check_crc8(reinterpret_cast<uint8_t *>(&rx_data_), sizeof(rx_data_))) {
-      tools::logger()->debug("[Gimbal] CRC8 check failed.");
+    if (rx_data_.tail != 0x0d) 
+    {
+      error_count++;
+      tools::logger()->debug("[Gimbal] tail check failed.");
+      try {
+        serial_.flushInput();
+      } catch (...) {
+      }
       continue;
-    }*/
+    }
+
+    const auto crc8 = tools::get_crc8(
+      reinterpret_cast<uint8_t *>(&rx_data_),
+      sizeof(rx_data_) - sizeof(rx_data_.crc8) - sizeof(rx_data_.tail));
+    if (crc8 != rx_data_.crc8) {
+      error_count++;
+      tools::logger()->debug("[Gimbal] CRC8 check failed.");
+      try {
+        serial_.flushInput();
+      } catch (...) {
+      }
+      continue;
+    }
 
     error_count = 0;
     Eigen::Quaterniond q(rx_data_.q[0], rx_data_.q[1], rx_data_.q[2], rx_data_.q[3]);
     queue_.push({q, t});
-
-    std::lock_guard<std::mutex> lock(mutex_);
+    
+     std::lock_guard<std::mutex> lock(mutex_);
 
     state_.yaw = rx_data_.yaw;
     state_.yaw_vel = rx_data_.yaw_vel;
@@ -211,6 +286,7 @@ void Gimbal::reconnect()
 
     try {
       serial_.open();  // 尝试重新打开
+      serial_.flushInput();
       queue_.clear();
       tools::logger()->info("[Gimbal] Reconnected serial successfully.");
       break;
@@ -220,5 +296,4 @@ void Gimbal::reconnect()
     }
   }
 }
-
-}  // namespace io
+}//namespace io
