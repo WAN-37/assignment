@@ -6,10 +6,6 @@
 
 using namespace Eigen;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef double tinytype;  // should be double if you want to generate code
 typedef Matrix<tinytype, Dynamic, Dynamic> tinyMatrix;
 typedef Matrix<tinytype, Dynamic, 1> tinyVector;
@@ -198,7 +194,3 @@ typedef struct {
 // Add at the top with other definitions
 #define BENCH_NX 12
 #define BENCH_NU 4
-
-#ifdef __cplusplus
-}
-#endif

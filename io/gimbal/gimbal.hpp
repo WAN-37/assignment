@@ -16,17 +16,17 @@ namespace io
 {
 struct __attribute__((packed)) GimbalToVision
 {
-  uint8_t head = 0xff;
+  uint8_t head =0xff;
   uint8_t mode;  //云台工作模式  0: 空闲, 1: 自瞄, 2: 小符, 3: 大符
-  float q[4];    // 云台姿态四元数 wxyz顺序
-  float yaw;   // 偏航角
-  float yaw_vel; // 偏航角速度
-  float pitch;// 俯仰角
-  float pitch_vel; // 俯仰角速度
-  float bullet_speed;
-  uint16_t bullet_count;  // 子弹累计发送次数
-  uint8_t crc8;
-  uint8_t tail = 0x0d;
+  float q[4];    // 云台姿态四元数 wxyz顺序 4*4
+  float yaw;   // 偏航角 4
+  float yaw_vel; // 偏航角速度 4 
+  float pitch;// 俯仰角 4
+  float pitch_vel; // 俯仰角速度 4
+  float bullet_speed;//2字节  
+  uint16_t bullet_count;  // 子弹累计发送次数 2字节
+  uint8_t crc8 = 0xff;//1字节
+  uint8_t tail = 0x0d;//1字节
 };
 
 static_assert(sizeof(GimbalToVision) <= 64);
@@ -41,7 +41,7 @@ struct __attribute__((packed)) VisionToGimbal
   float pitch;  // 目标俯仰角
   float pitch_vel;  // 目标俯仰角速度
   float pitch_acc; // 目标俯仰角加速度
-  uint8_t crc8;
+  uint8_t crc8 =0xff;
   uint8_t tail = 0x0d;
 };
 
@@ -88,6 +88,7 @@ private:
 
   std::thread thread_;
   std::atomic<bool> quit_ = false;
+  std::atomic<bool> started_{false};//新增
   mutable std::mutex mutex_;
 
   GimbalToVision rx_data_;
@@ -98,6 +99,8 @@ private:
   //新增的
   Eigen::Quaterniond last_q_{1.0, 0.0, 0.0, 0.0};
   bool has_last_q_ = false;
+
+  std::atomic<bool> sent_once_{false};//新增
 
   tools::ThreadSafeQueue<std::tuple<Eigen::Quaterniond, std::chrono::steady_clock::time_point>>
     queue_{1000};

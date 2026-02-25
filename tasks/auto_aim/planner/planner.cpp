@@ -10,6 +10,9 @@ using namespace std::chrono_literals;
 
 namespace auto_aim
 {
+// 新增：静态全局变量存储机器人初始ENU坐标
+static Eigen::Vector3d robot_init_enu_(0.0, 0.0, 0.0);
+
 Planner::Planner(const std::string & config_path)
 {
   auto yaml = tools::load(config_path);
@@ -169,11 +172,20 @@ Eigen::Matrix<double, 2, 1> Planner::aim(const Target & target, double bullet_sp
   }
   debug_xyza = Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
 
-  auto azim = std::atan2(xyz.y(), xyz.x());
+  //是ENU（东-北-天） 坐标系：
+  //X轴：正东方向
+  //Y轴：正北方向
+  //Z轴：正天方向（向上）
+
+  //auto azim = std::atan2(xyz.y(), xyz.x());
+  
+  Eigen::Vector3d target_rel_enu = xyz - robot_init_enu_; // 相对机器人初始位置的坐标
+  auto azim = std::atan2(target_rel_enu.y(), target_rel_enu.x()); // 基于相对坐标计算方位角
+
   auto bullet_traj = tools::Trajectory(bullet_speed, min_dist, xyz.z());
   if (bullet_traj.unsolvable) throw std::runtime_error("Unsolvable bullet trajectory!");
 
-  return {tools::limit_rad(azim + yaw_offset_), -bullet_traj.pitch - pitch_offset_};
+  return {tools::limit_rad(azim + yaw_offset_), bullet_traj.pitch + pitch_offset_};
 }
 
 Trajectory Planner::get_trajectory(Target & target, double yaw0, double bullet_speed)

@@ -569,6 +569,8 @@ bool Galaxy::convertFrameToMat(PGX_FRAME_BUFFER frame_buffer, cv::Mat &img) {
     return false;
   }
 
+  cv::rotate(img, img, cv::ROTATE_180);
+
   return true;
 }
 

@@ -7,7 +7,7 @@ classify_model: assets/tiny_resnet.onnx
 yolo11_model_path: assets/yolo11.xml
 yolov8_model_path: assets/yolov8.xml
 yolov5_model_path: assets/yolov5.xml
-device: GPU
+device: CPU
 min_confidence: 0.8
 use_traditional: true
 
@@ -38,8 +38,8 @@ max_temp_lost_count: 15
 outpost_max_temp_lost_count: 75
 
 #####-----aimer参数-----#####
-yaw_offset: -2 # degree -2.5
-pitch_offset: 0 # degree 2
+yaw_offset: 0 # degree -2.5
+pitch_offset: 4 # degree 2
 comming_angle: 60 # degree
 leaving_angle: 20 # degree
 decision_speed: 8 # rad/s
@@ -53,9 +53,9 @@ judge_distance: 2 #距离判断阈值
 auto_fire: true # 是否由自瞄控制射击
 
 camera_name: "galaxy"
-exposure_ms: 2
+exposure_ms: 8 
 gain: 16
-vid_pid: "2bdf:0001"
+vid_pid:  "2ba2:4d55"
 
 #  1  0  0
 #  0  1  0
@@ -63,13 +63,17 @@ vid_pid: "2bdf:0001"
 
 R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
-# 重投影误差: 0.3145px
-camera_matrix: [1851.7070167840545, 0, 721.12585328714192, 0, 1851.8175594364079, 571.69879709276688, 0, 0, 1]
-distort_coeffs: [-0.093662536083526302, 0.18945726820633155, -0.00040424349861928674, -0.0040568403852123142, 0]
+# 相机同理想情况的偏角: yaw1.44 pitch-7.28 roll0.96 degree
+# 标定板到世界坐标系原点的水平距离: 1.13 m
+# 标定板同竖直摆放时的偏角: yaw7.61 pitch13.92 roll-0.46 degree
+R_camera2gimbal: [-0.027182119030230909, -0.12616154330853446, 0.99163723074269183, -0.99949106557517331, 0.019998323121329122, -0.024853106601381177, -0.016695575474690555, -0.99180811252093692, -0.12664093215554434]
+t_camera2gimbal: [0.13160669975045827, 0.10377721766577375, 0.024908271912914642]
 
-# 相机同理想情况的偏角: yaw-1.61 pitch-0.82 roll-0.61 degree
-R_camera2gimbal: [0.02823004230930648, -0.014076983590428133, 0.99950232778328707, -0.99954530259354468, -0.010995644138609872, 0.028076393521179785, 0.010594940981141165, -0.99984045444409364, -0.014380990321749998]
-t_camera2gimbal: [0.045517325957791413, 0.10544338092767802, 0.034649710880185793]
+# 相机同理想情况的偏角: yaw-1.22 pitch0.03 roll-0.04 degree
+# 标定板到世界坐标系原点的水平距离: 0.99 m
+# 标定板同竖直摆放时的偏角: yaw-176.89 pitch9.38 roll0.57 degree
+# R_camera2gimbal: [-0.061623793034681837, 0.042810279869325209, -0.9971809204299531, 0.9980558453496936, 0.011981602123157308, -0.061163475815813911, 0.0093293995159397236, -0.99901137188125766, -0.043465401834097486]
+# t_camera2gimbal: [-0.19467487558355218, -0.016134197484411767, 0.058813272587523231]
 
 #####-----cboard参数-----#####
 quaternion_canid: 0x100

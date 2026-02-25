@@ -1,8 +1,8 @@
 camera_name: "galaxy"
-exposure_ms: 2
+exposure_ms: 5
 # gamma: 0.5
-gain: 10.0
-vid_pid: "f622:d13a"
+gain: 8.0
+vid_pid: "2ba2:4d55" #"f622:d13a"
 
 # camera_name: "hikrobot"
 # exposure_ms: 3

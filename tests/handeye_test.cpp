@@ -17,7 +17,7 @@
 
 const std::string keys =
   "{help h usage ? |                     | 输出命令行参数说明}"
-  "{config-path c  | configs/handeye.yaml | yaml配置文件路径 }"
+  "{config-path c  | configs/standard3.yaml | yaml配置文件路径 }"
   "{d display      |                     | 显示视频流       }";
 
 // 世界坐标到像素坐标的转换

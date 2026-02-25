@@ -188,6 +188,7 @@ int main(int argc, char * argv[])
   Eigen::Matrix3d R_camera2ideal = R_gimbal2ideal * R_camera2gimbal_eigen;
   Eigen::Vector3d camera_ypr = tools::eulers(R_camera2ideal, 1, 0, 2) * 57.3;  // degree
 
+
   // 计算标定板到世界坐标系原点的水平距离
   auto x = t_board2world.at<double>(0);
   auto y = t_board2world.at<double>(1);

@@ -100,7 +100,7 @@ int main(int argc, char * argv[])
 
       plotter.plot(data);
 
-      std::this_thread::sleep_for(10ms);
+      std::this_thread::sleep_for(2ms);
     }
   });
 
