@@ -177,11 +177,12 @@ Eigen::Matrix<double, 2, 1> Planner::aim(const Target & target, double bullet_sp
   //Y轴：正北方向
   //Z轴：正天方向（向上）
 
-  //auto azim = std::atan2(xyz.y(), xyz.x());
-  
+  //auto azim = std::atan2(xyz.y(), xyz.x());     原来坐标系
+  +
+  ///////    改过的坐标系
   Eigen::Vector3d target_rel_enu = xyz - robot_init_enu_; // 相对机器人初始位置的坐标
   auto azim = std::atan2(target_rel_enu.y(), target_rel_enu.x()); // 基于相对坐标计算方位角
-
+  ///////
   auto bullet_traj = tools::Trajectory(bullet_speed, min_dist, xyz.z());
   if (bullet_traj.unsolvable) throw std::runtime_error("Unsolvable bullet trajectory!");
 

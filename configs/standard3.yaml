@@ -57,7 +57,7 @@ judge_distance: 2 #距离判断阈值
 auto_fire: true # 是否由自瞄控制射击
 
 camera_name: "galaxy"
-exposure_ms: 5.0
+exposure_ms: 8.0
 gain: 5.0
 vid_pid: 2ba2:4d55 #"2bdf:0001"
 

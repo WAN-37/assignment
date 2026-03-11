@@ -103,7 +103,8 @@ ninja -C build
 
 run demo
 
-``` zsh
+``` zshexport LD_LIBRARY_PATH=/home/wan/code/auto_aim_lu/io/galaxy/lib/x86_64:${LD_LIBRARY_PATH}
+./build/capture --config-path=configs/calibration.yaml --folder-path=assets/img_with_q
 ./build/auto_aim_test
 ```
 
